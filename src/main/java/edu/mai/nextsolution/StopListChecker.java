@@ -19,6 +19,7 @@ public class StopListChecker {
 
     private static final float THRESHOLD_LOW = 0.82f;
     private static final float THRESHOLD_HIGH = 0.92f;
+    private static final int REUSLT_LIMIT = 3;
 
     public StopListChecker(FioEmbeddingService embeddingService, QdrantClient qdrantClient,
                            @Value("${app.qdrant.collection-name:stop_list_collection}") String collectionName) {
@@ -38,7 +39,7 @@ public class StopListChecker {
                 Points.SearchPoints.newBuilder()
                     .setCollectionName(collectionName)
                     .addAllVector(floatToFloatList(vector))
-                    .setLimit(1)
+                    .setLimit(REUSLT_LIMIT)
                     .setWithPayload(Points.WithPayloadSelector.newBuilder().setEnable(true).build())
                     .build()
             ).get();
@@ -47,16 +48,19 @@ public class StopListChecker {
                 return new CheckResult(CheckResult.Status.APPROVED, "Авто-пропуск. Совпадений не найдено.");
             }
 
+            // Все совпадения выше нижнего порога (их не больше REUSLT_LIMIT — это лимит поиска)
+            List<Figurant> figurants = toFigurants(results);
+
             Points.ScoredPoint match = results.get(0);
             String stopFio = extractFio(match);
 
             if (match.getScore() >= THRESHOLD_HIGH) {
-                return new CheckResult(CheckResult.Status.REJECTED, 
-                    "Авто-блок! Найдено критическое совпадение со стоп-листом: " + stopFio);
+                return new CheckResult(CheckResult.Status.REJECTED,
+                    "Авто-блок! Найдено критическое совпадение со стоп-листом: " + stopFio, figurants);
             }
 
-            return new CheckResult(CheckResult.Status.MANUAL_REVIEW, 
-                "Подозрение на совпадение (" + match.getScore() + ") со стоп-листом: " + stopFio);
+            return new CheckResult(CheckResult.Status.MANUAL_REVIEW,
+                "Подозрение на совпадение (" + match.getScore() + ") со стоп-листом: " + stopFio, figurants);
 
         } catch (Exception e) {
             return new CheckResult(CheckResult.Status.MANUAL_REVIEW, "Ошибка проверки: " + e.getMessage());
@@ -69,11 +73,46 @@ public class StopListChecker {
         return list;
     }
 
-    private String extractFio(Points.ScoredPoint point) {
-        Map<String, JsonWithInt.Value> payload = point.getPayloadMap();
-        if (payload.containsKey("fio")) {
-            return payload.get("fio").getStringValue();
+    private List<Figurant> toFigurants(List<Points.ScoredPoint> points) {
+        List<Figurant> figurants = new java.util.ArrayList<>(points.size());
+        for (Points.ScoredPoint point : points) {
+            if (point.getScore() < THRESHOLD_LOW) {
+                continue; // отбрасываем слабые совпадения, попавшие в выдачу
+            }
+            Map<String, JsonWithInt.Value> payload = point.getPayloadMap();
+            figurants.add(new Figurant(
+                payloadString(payload, "sl_id"),
+                payloadString(payload, "full_fio"),
+                point.getId().getUuid(),
+                point.getScore()
+            ));
         }
-        return "Unknown";
+        return figurants;
+    }
+
+    private String extractFio(Points.ScoredPoint point) {
+        String fio = payloadString(point.getPayloadMap(), "full_fio");
+        return fio != null ? fio : "Unknown";
+    }
+
+    /** Достаёт значение payload как строку независимо от его типа (string/integer/double/bool). */
+    private String payloadString(Map<String, JsonWithInt.Value> payload, String key) {
+        JsonWithInt.Value value = payload.get(key);
+        if (value == null) {
+            return null;
+        }
+        if (value.hasStringValue()) {
+            return value.getStringValue();
+        }
+        if (value.hasIntegerValue()) {
+            return String.valueOf(value.getIntegerValue());
+        }
+        if (value.hasDoubleValue()) {
+            return String.valueOf(value.getDoubleValue());
+        }
+        if (value.hasBoolValue()) {
+            return String.valueOf(value.getBoolValue());
+        }
+        return null;
     }
 }
