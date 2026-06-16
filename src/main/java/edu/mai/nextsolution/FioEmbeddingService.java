@@ -110,7 +110,7 @@ public class FioEmbeddingService  implements AutoCloseable {
                 // Это вектор от токена [CLS]; mean pooling по last_hidden_state дал бы ДРУГОЕ
                 // пространство и не совпал бы с векторами в Qdrant.
                 OnnxValue poolerOutput = results.get("pooler_output")
-                        .orElseThrow(() -> new OrtException("В выходах модели нет 'pooler_output'"));
+                        .<OrtException>orElseThrow(() -> new OrtException("В выходах модели нет 'pooler_output'"));
                 float[][] pooled = (float[][]) poolerOutput.getValue();
 
                 // 4. Обязательная L2-нормализация для LaBSE
