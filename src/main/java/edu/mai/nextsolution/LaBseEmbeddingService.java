@@ -2,11 +2,13 @@ package edu.mai.nextsolution;
 import ai.djl.huggingface.tokenizers.Encoding;
 import ai.djl.huggingface.tokenizers.HuggingFaceTokenizer;
 import ai.onnxruntime.*;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import jakarta.annotation.PostConstruct;
-import java.io.InputStream;
 import java.nio.LongBuffer;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -14,32 +16,28 @@ import java.util.Map;
 @Service
 public class LaBseEmbeddingService implements EmbeddingService, AutoCloseable {
 
+    private final String modelPath;
+    private final String tokenizerPath;
+
     private OrtEnvironment env;
     private OrtSession session;
     private HuggingFaceTokenizer tokenizer;
 
-    public LaBseEmbeddingService() {
+    public LaBseEmbeddingService(
+            @Value("${app.labse.model-path:inferences/labse/labse_model.onnx}") String modelPath,
+            @Value("${app.labse.tokenizer-path:inferences/labse/tokenizer/tokenizer.json}") String tokenizerPath) {
+        this.modelPath = modelPath;
+        this.tokenizerPath = tokenizerPath;
     }
 
     @PostConstruct
     public void init() {
         try {
-            // Пытаемся загрузить модель из корня проекта или ресурсов
-            String modelPath = "labse_model.onnx";
             java.io.File modelFile = new java.io.File(modelPath);
-
             if (!modelFile.exists()) {
-                // Если в корне нет, попробуем проверить в папке ресурсов
-                java.net.URL resource = getClass().getClassLoader().getResource("labse_model.onnx");
-                if (resource != null) {
-                    modelPath = resource.getPath();
-                    if (modelPath.startsWith("/") && System.getProperty("os.name").toLowerCase().contains("win")) {
-                        modelPath = modelPath.substring(1);
-                    }
-                } else {
-                    System.err.println("[WARNING] labse_model.onnx not found in root or resources, FioEmbeddingService will not work properly!");
-                    return;
-                }
+                System.err.println("[WARNING] LaBSE model not found at '" + modelPath
+                        + "', LaBseEmbeddingService will not work properly!");
+                return;
             }
 
             this.env = OrtEnvironment.getEnvironment();
@@ -47,30 +45,30 @@ public class LaBseEmbeddingService implements EmbeddingService, AutoCloseable {
             options.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT);
             options.setInterOpNumThreads(2);
             options.setIntraOpNumThreads(4);
-            this.session = env.createSession(modelPath, options);
+            this.session = env.createSession(modelFile.getAbsolutePath(), options);
 
-            // Загружаем реальный токенизатор (HuggingFace fast-tokenizer) из ресурсов
+            // Загружаем реальный токенизатор (HuggingFace fast-tokenizer) с диска
             this.tokenizer = loadTokenizer();
 
-            System.out.println("[INFO] FioEmbeddingService initialized successfully with ONNX Runtime.");
+            System.out.println("[INFO] LaBseEmbeddingService initialized successfully with ONNX Runtime.");
         } catch (Throwable t) {
-            System.err.println("[ERROR] Failed to initialize ONNX Runtime or load model. FioEmbeddingService is disabled.");
+            System.err.println("[ERROR] Failed to initialize ONNX Runtime or load model. LaBseEmbeddingService is disabled.");
             t.printStackTrace();
             // Оставляем session == null, чтобы сервис возвращал пустые эмбеддинги вместо падения всего приложения
         }
     }
 
     private HuggingFaceTokenizer loadTokenizer() throws Exception {
-        try (InputStream tokStream = getClass().getClassLoader().getResourceAsStream("tokenizer/tokenizer.json")) {
-            if (tokStream == null) {
-                System.err.println("[ERROR] tokenizer/tokenizer.json не найден в ресурсах, токенизация работать не будет!");
-                return null;
-            }
-            Map<String, String> options = new HashMap<>();
-            options.put("truncation", "true");
-            options.put("maxLength", "512"); // model_max_length из tokenizer_config.json
-            return HuggingFaceTokenizer.newInstance(tokStream, options);
+        Path path = Paths.get(tokenizerPath);
+        if (!path.toFile().exists()) {
+            System.err.println("[ERROR] tokenizer.json для LaBSE не найден по пути '" + tokenizerPath
+                    + "', токенизация работать не будет!");
+            return null;
         }
+        Map<String, String> options = new HashMap<>();
+        options.put("truncation", "true");
+        options.put("maxLength", "512"); // model_max_length из tokenizer_config.json
+        return HuggingFaceTokenizer.newInstance(path, options);
     }
 
     /**

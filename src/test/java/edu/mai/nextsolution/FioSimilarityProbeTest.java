@@ -20,7 +20,9 @@ class FioSimilarityProbeTest {
 
     @Test
     void compareTwoNames() throws Exception {
-        LaBseEmbeddingService svc = new LaBseEmbeddingService();
+        LaBseEmbeddingService svc = new LaBseEmbeddingService(
+                "inferences/labse/labse_model.onnx",
+                "inferences/labse/tokenizer/tokenizer.json");
         svc.init();
         try {
             float[] v1 = svc.getEmbedding(FIO_1);
