@@ -31,3 +31,8 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### ONNX models (большие бинарники, в git не храним) ###
+*.onnx
+*.onnx.data
+/inferences/
