@@ -12,7 +12,7 @@ import java.util.Map;
 
 
 @Service
-public class LaBseEmbeddingService implements AutoCloseable {
+public class LaBseEmbeddingService implements EmbeddingService, AutoCloseable {
 
     private OrtEnvironment env;
     private OrtSession session;
@@ -78,6 +78,7 @@ public class LaBseEmbeddingService implements AutoCloseable {
      * @param cleanFio Предварительно очищенная и нормализованная строка ФИО
      * @return Нормализованный вектор float[] размерности 768 (LaBSE)
      */
+    @Override
     public float[] getEmbedding(String cleanFio) throws OrtException {
         if (session == null || tokenizer == null) {
             return new float[768]; // Пустой вектор, если модель/токенизатор не инициализированы (размерность LaBSE)

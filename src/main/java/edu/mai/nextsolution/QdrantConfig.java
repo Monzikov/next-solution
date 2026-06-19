@@ -30,6 +30,12 @@ public class QdrantConfig {
     @Value("${app.qdrant.vector-size:768}")
     private long vectorSize;
 
+    @Value("${app.qdrant.bge-collection-name:stop_list_collection_bge_m3}")
+    private String bgeCollectionName;
+
+    @Value("${app.qdrant.bge-vector-size:1024}")
+    private long bgeVectorSize;
+
     @Value("${app.qdrant.distance:Cosine}")
     private String distance;
 
@@ -46,27 +52,30 @@ public class QdrantConfig {
     @Bean
     public CommandLineRunner ensureQdrantCollection(QdrantClient qdrantClient) {
         return args -> {
-            try {
-                Boolean exists = qdrantClient.collectionExistsAsync(collectionName).get();
-                if (Boolean.TRUE.equals(exists)) {
-                    log.info("Коллекция Qdrant '{}' уже существует.", collectionName);
-                    return;
-                }
-
-                Collections.Distance dist = Collections.Distance.valueOf(distance);
-                qdrantClient.createCollectionAsync(
-                        collectionName,
-                        Collections.VectorParams.newBuilder()
-                                .setSize(vectorSize)
-                                .setDistance(dist)
-                                .build()
-                ).get();
-                log.info("Создана коллекция Qdrant '{}' (size={}, distance={}).",
-                        collectionName, vectorSize, dist);
-            } catch (Exception e) {
-                log.error("Не удалось создать/проверить коллекцию Qdrant '{}': {}",
-                        collectionName, e.getMessage(), e);
-            }
+            ensureCollection(qdrantClient, collectionName, vectorSize);     // LaBSE (768)
+            ensureCollection(qdrantClient, bgeCollectionName, bgeVectorSize); // BGE-M3 (1024)
         };
+    }
+
+    private void ensureCollection(QdrantClient qdrantClient, String name, long size) {
+        try {
+            Boolean exists = qdrantClient.collectionExistsAsync(name).get();
+            if (Boolean.TRUE.equals(exists)) {
+                log.info("Коллекция Qdrant '{}' уже существует.", name);
+                return;
+            }
+
+            Collections.Distance dist = Collections.Distance.valueOf(distance);
+            qdrantClient.createCollectionAsync(
+                    name,
+                    Collections.VectorParams.newBuilder()
+                            .setSize(size)
+                            .setDistance(dist)
+                            .build()
+            ).get();
+            log.info("Создана коллекция Qdrant '{}' (size={}, distance={}).", name, size, dist);
+        } catch (Exception e) {
+            log.error("Не удалось создать/проверить коллекцию Qdrant '{}': {}", name, e.getMessage(), e);
+        }
     }
 }

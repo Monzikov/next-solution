@@ -3,28 +3,32 @@ package edu.mai.nextsolution;
 import io.qdrant.client.QdrantClient;
 import io.qdrant.client.grpc.JsonWithInt;
 import io.qdrant.client.grpc.Points;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
 
-@Service
+/**
+ * Проверка ФИО по стоп-листу в Qdrant. Не привязан к конкретной модели:
+ * получает {@link EmbeddingService}, имя коллекции и пороги через конструктор,
+ * поэтому одним и тем же классом обслуживаются и LaBSE, и BGE-M3 (бины в {@link CheckerConfig}).
+ */
 public class StopListChecker {
 
-    private final LaBseEmbeddingService embeddingService;
-    private final QdrantClient qdrantClient;
-    private final String collectionName;
-
-    private static final float THRESHOLD_LOW = 0.82f;
-    private static final float THRESHOLD_HIGH = 0.92f;
     private static final int REUSLT_LIMIT = 3;
 
-    public StopListChecker(LaBseEmbeddingService embeddingService, QdrantClient qdrantClient,
-                           @Value("${app.qdrant.collection-name:stop_list_collection}") String collectionName) {
+    private final EmbeddingService embeddingService;
+    private final QdrantClient qdrantClient;
+    private final String collectionName;
+    private final float thresholdLow;
+    private final float thresholdHigh;
+
+    public StopListChecker(EmbeddingService embeddingService, QdrantClient qdrantClient,
+                           String collectionName, float thresholdLow, float thresholdHigh) {
         this.embeddingService = embeddingService;
         this.qdrantClient = qdrantClient;
         this.collectionName = collectionName;
+        this.thresholdLow = thresholdLow;
+        this.thresholdHigh = thresholdHigh;
     }
 
     public CheckResult checkClient(SearchRequest client) {
@@ -43,7 +47,7 @@ public class StopListChecker {
                     .build()
             ).get();
 
-            if (results.isEmpty() || results.get(0).getScore() < THRESHOLD_LOW) {
+            if (results.isEmpty() || results.get(0).getScore() < thresholdLow) {
                 return new CheckResult(CheckResult.Status.APPROVED, "Авто-пропуск. Совпадений не найдено.");
             }
 
@@ -53,7 +57,7 @@ public class StopListChecker {
             Points.ScoredPoint match = results.get(0);
             String stopFio = extractFio(match);
 
-            if (match.getScore() >= THRESHOLD_HIGH) {
+            if (match.getScore() >= thresholdHigh) {
                 return new CheckResult(CheckResult.Status.REJECTED,
                     "Авто-блок! Найдено критическое совпадение со стоп-листом: " + stopFio, figurants);
             }
@@ -75,7 +79,7 @@ public class StopListChecker {
     private List<Figurant> toFigurants(List<Points.ScoredPoint> points) {
         List<Figurant> figurants = new java.util.ArrayList<>(points.size());
         for (Points.ScoredPoint point : points) {
-            if (point.getScore() < THRESHOLD_LOW) {
+            if (point.getScore() < thresholdLow) {
                 continue; // отбрасываем слабые совпадения, попавшие в выдачу
             }
             Map<String, JsonWithInt.Value> payload = point.getPayloadMap();
