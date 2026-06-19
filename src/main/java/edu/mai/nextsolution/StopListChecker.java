@@ -6,14 +6,13 @@ import io.qdrant.client.grpc.Points;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 @Service
 public class StopListChecker {
 
-    private final FioEmbeddingService embeddingService;
+    private final LaBseEmbeddingService embeddingService;
     private final QdrantClient qdrantClient;
     private final String collectionName;
 
@@ -21,7 +20,7 @@ public class StopListChecker {
     private static final float THRESHOLD_HIGH = 0.92f;
     private static final int REUSLT_LIMIT = 3;
 
-    public StopListChecker(FioEmbeddingService embeddingService, QdrantClient qdrantClient,
+    public StopListChecker(LaBseEmbeddingService embeddingService, QdrantClient qdrantClient,
                            @Value("${app.qdrant.collection-name:stop_list_collection}") String collectionName) {
         this.embeddingService = embeddingService;
         this.qdrantClient = qdrantClient;

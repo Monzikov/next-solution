@@ -20,7 +20,7 @@ class FioSimilarityProbeTest {
 
     @Test
     void compareTwoNames() throws Exception {
-        FioEmbeddingService svc = new FioEmbeddingService();
+        LaBseEmbeddingService svc = new LaBseEmbeddingService();
         svc.init();
         try {
             float[] v1 = svc.getEmbedding(FIO_1);

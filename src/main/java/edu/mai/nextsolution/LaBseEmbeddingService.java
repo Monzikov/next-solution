@@ -12,13 +12,13 @@ import java.util.Map;
 
 
 @Service
-public class FioEmbeddingService  implements AutoCloseable {
+public class LaBseEmbeddingService implements AutoCloseable {
 
     private OrtEnvironment env;
     private OrtSession session;
     private HuggingFaceTokenizer tokenizer;
 
-    public FioEmbeddingService() {
+    public LaBseEmbeddingService() {
     }
 
     @PostConstruct
