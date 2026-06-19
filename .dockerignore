@@ -1,0 +1,16 @@
+# Не отправляем демону тяжёлые/ненужные пути (контекст ~3 ГБ -> мегабайты).
+# Модели монтируются как volume, в образе их нет.
+inferences/
+target/
+.git/
+.gitignore
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+.mvn/wrapper/maven-wrapper.jar
+HELP.md
+Dockerfile
+.dockerignore
+docker-compose.yml

@@ -11,8 +11,8 @@ RUN ./mvnw clean package -DskipTests
 FROM eclipse-temurin:24-jre
 WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
-# Копируем модель, если она была добавлена в корень проекта во время сборки
-# Если модель внутри JAR (в ресурсах), эта строка не обязательна, но полезна для внешнего управления
-COPY labse_model.onnx* ./
+# Модели (LaBSE ~0.5 ГБ, BGE-M3 ~2.2 ГБ) в образ не пакуются — они монтируются
+# как volume в /app/inferences (см. docker-compose.yml). Приложение читает их по
+# путям app.labse.model-path / app.bge.model-path (по умолчанию inferences/...).
 EXPOSE 88
 ENTRYPOINT ["java", "-jar", "app.jar"]

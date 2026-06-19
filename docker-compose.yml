@@ -11,7 +11,11 @@ services:
       SPRING_AI_VECTORSTORE_QDRANT_HOST: qdrant
       SPRING_AI_VECTORSTORE_QDRANT_PORT: 6334
       SPRING_AI_VECTORSTORE_QDRANT_USE_TLS: false
-      SPRING_AI_VECTORSTORE_QDRANT_COLLECTION_NAME: stop_list_collection
+      SPRING_AI_VECTORSTORE_QDRANT_LABSE_COLLECTION_NAME: stop_list_collection
+      SPRING_AI_VECTORSTORE_QDRANT_BGE_COLLECTION_NAME: stop_list_collection_bge_m3
+    volumes:
+      # Модели монтируются снаружи (в образ не пакуются). read-only — приложение их только читает.
+      - ./inferences:/app/inferences:ro
     depends_on:
       qdrant:
         condition: service_healthy
