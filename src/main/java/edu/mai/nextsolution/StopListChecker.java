@@ -4,8 +4,10 @@ import io.qdrant.client.QdrantClient;
 import io.qdrant.client.grpc.JsonWithInt;
 import io.qdrant.client.grpc.Points;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Проверка ФИО по стоп-листу в Qdrant. Не привязан к конкретной модели:
@@ -14,7 +16,7 @@ import java.util.Map;
  */
 public class StopListChecker {
 
-    private static final int REUSLT_LIMIT = 3;
+    private static final int RESULT_LIMIT = 7;
 
     private final EmbeddingService embeddingService;
     private final QdrantClient qdrantClient;
@@ -32,41 +34,39 @@ public class StopListChecker {
     }
 
     public CheckResult checkClient(SearchRequest client) {
+        String fullName = String.format("%s %s %s", client.getLastName(), client.getFirstName(), client.getPatronymic()).trim();
         try {
-            String fullName = String.format("%s %s %s", 
-                client.getLastName(), client.getFirstName(), client.getPatronymic()).trim();
-            
             float[] vector = embeddingService.getEmbedding(fullName);
             
             List<Points.ScoredPoint> results = qdrantClient.searchAsync(
                 Points.SearchPoints.newBuilder()
                     .setCollectionName(collectionName)
                     .addAllVector(floatToFloatList(vector))
-                    .setLimit(REUSLT_LIMIT)
+                    .setLimit(RESULT_LIMIT)
                     .setWithPayload(Points.WithPayloadSelector.newBuilder().setEnable(true).build())
                     .build()
             ).get();
-
-            if (results.isEmpty() || results.get(0).getScore() < thresholdLow) {
-                return new CheckResult(CheckResult.Status.APPROVED, "Авто-пропуск. Совпадений не найдено.");
-            }
-
-            // Все совпадения выше нижнего порога (их не больше REUSLT_LIMIT — это лимит поиска)
             List<Figurant> figurants = toFigurants(results);
 
-            Points.ScoredPoint match = results.get(0);
-            String stopFio = extractFio(match);
 
-            if (match.getScore() >= thresholdHigh) {
-                return new CheckResult(CheckResult.Status.REJECTED,
-                    "Авто-блок! Найдено критическое совпадение со стоп-листом: " + stopFio, figurants);
+            if (figurants.isEmpty()) {
+                return new CheckResult(fullName, CheckResult.Status.APPROVED, "Авто-пропуск. Совпадений не найдено.");
             }
 
-            return new CheckResult(CheckResult.Status.MANUAL_REVIEW,
-                "Подозрение на совпадение (" + match.getScore() + ") со стоп-листом: " + stopFio, figurants);
+            for (var match : figurants) {
+                if (match.getSimilarity() >= thresholdHigh) {
+                    return new CheckResult(fullName, CheckResult.Status.REJECTED,
+                            "Авто-блок! Найдено критическое совпадение с фигурантом (uuid:"+match.getUuid()+", "+match.getFullFio()+") из стоп-листа: " + match.getStopListId(), figurants);
+                }
+                if (match.getSimilarity() >= thresholdLow) {
+                    return new CheckResult(fullName, CheckResult.Status.MANUAL_REVIEW,
+                            "Подозрение на совпадение совпадение с фигурантом (uuid:"+match.getUuid()+", "+match.getFullFio()+") из стоп-листа: " + match.getStopListId(), figurants);
+                }
+            }
+            return new CheckResult(fullName, CheckResult.Status.APPROVED, "Авто-пропуск. Значимых совпадений не найдено.", figurants);
 
         } catch (Exception e) {
-            return new CheckResult(CheckResult.Status.MANUAL_REVIEW, "Ошибка проверки: " + e.getMessage());
+            return new CheckResult(fullName, CheckResult.Status.MANUAL_REVIEW, "Ошибка проверки: " + e.getMessage());
         }
     }
 
@@ -79,9 +79,9 @@ public class StopListChecker {
     private List<Figurant> toFigurants(List<Points.ScoredPoint> points) {
         List<Figurant> figurants = new java.util.ArrayList<>(points.size());
         for (Points.ScoredPoint point : points) {
-            if (point.getScore() < thresholdLow) {
-                continue; // отбрасываем слабые совпадения, попавшие в выдачу
-            }
+//            if (point.getScore() < thresholdLow) {
+//                continue; // отбрасываем слабые совпадения, попавшие в выдачу
+//            }
             Map<String, JsonWithInt.Value> payload = point.getPayloadMap();
             figurants.add(new Figurant(
                 payloadString(payload, "sl_id"),
@@ -90,12 +90,19 @@ public class StopListChecker {
                 point.getScore()
             ));
         }
-        return figurants;
+        return figurants.stream()
+                .sorted(Comparator.comparingDouble(Figurant::getSimilarity).reversed())
+                .collect(Collectors.toList());
     }
 
     private String extractFio(Points.ScoredPoint point) {
         String fio = payloadString(point.getPayloadMap(), "full_fio");
         return fio != null ? fio : "Unknown";
+    }
+
+    private String extractStopListId(Points.ScoredPoint point) {
+        String sl_id = payloadString(point.getPayloadMap(), "sl_id");
+        return sl_id != null ? sl_id : "Unknown";
     }
 
     /** Достаёт значение payload как строку независимо от его типа (string/integer/double/bool). */
