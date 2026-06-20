@@ -1,5 +1,6 @@
 package edu.mai.nextsolution;
 
+import ai.onnxruntime.OrtException;
 import io.qdrant.client.QdrantClient;
 import io.qdrant.client.grpc.JsonWithInt;
 import io.qdrant.client.grpc.Points;
@@ -33,7 +34,7 @@ public class StopListChecker {
         this.thresholdHigh = thresholdHigh;
     }
 
-    public CheckResult checkClient(SearchRequest client) {
+    public SearchResult checkClient(SearchRequest client) {
         String fullName = String.format("%s %s %s", client.getLastName(), client.getFirstName(), client.getPatronymic()).trim();
         try {
             float[] vector = embeddingService.getEmbedding(fullName);
@@ -50,23 +51,23 @@ public class StopListChecker {
 
 
             if (figurants.isEmpty()) {
-                return new CheckResult(fullName, CheckResult.Status.APPROVED, "Авто-пропуск. Совпадений не найдено.");
+                return new SearchResult(fullName, SearchResult.Status.APPROVED, "Авто-пропуск. Совпадений не найдено.");
             }
 
             for (var match : figurants) {
                 if (match.getSimilarity() >= thresholdHigh) {
-                    return new CheckResult(fullName, CheckResult.Status.REJECTED,
+                    return new SearchResult(fullName, SearchResult.Status.REJECTED,
                             "Авто-блок! Найдено критическое совпадение с фигурантом (uuid:"+match.getUuid()+", "+match.getFullFio()+") из стоп-листа: " + match.getStopListId(), figurants);
                 }
                 if (match.getSimilarity() >= thresholdLow) {
-                    return new CheckResult(fullName, CheckResult.Status.MANUAL_REVIEW,
+                    return new SearchResult(fullName, SearchResult.Status.MANUAL_REVIEW,
                             "Подозрение на совпадение совпадение с фигурантом (uuid:"+match.getUuid()+", "+match.getFullFio()+") из стоп-листа: " + match.getStopListId(), figurants);
                 }
             }
-            return new CheckResult(fullName, CheckResult.Status.APPROVED, "Авто-пропуск. Значимых совпадений не найдено.", figurants);
+            return new SearchResult(fullName, SearchResult.Status.APPROVED, "Авто-пропуск. Значимых совпадений не найдено.", figurants);
 
         } catch (Exception e) {
-            return new CheckResult(fullName, CheckResult.Status.MANUAL_REVIEW, "Ошибка проверки: " + e.getMessage());
+            return new SearchResult(fullName, SearchResult.Status.MANUAL_REVIEW, "Ошибка проверки: " + e.getMessage());
         }
     }
 
@@ -114,5 +115,42 @@ public class StopListChecker {
             return String.valueOf(value.getBoolValue());
         }
         return null;
+    }
+
+
+    public SimilarityResult checkSimilarity(SimilarityRequest request) {
+
+        try {
+            float[] v1 = embeddingService.getEmbedding(request.getString_1());
+            float[] v2 = embeddingService.getEmbedding(request.getString_2());
+            double score = cosine(v1, v2);
+            var status = verdict(score);
+            return  new SimilarityResult(request.getString_1(), request.getString_2(), status, score);
+        }
+        catch (OrtException e) {
+            return null;
+        }
+    }
+
+    private SimilarityResult.Status verdict(double score) {
+        if (score >= (double)thresholdHigh) {
+            return SimilarityResult.Status.REJECTED;
+        } else {
+            return score >= (double)thresholdLow ? SimilarityResult.Status.MANUAL_REVIEW : SimilarityResult.Status.APPROVED;
+        }
+    }
+
+    private static double cosine(float[] x, float[] y) {
+        double dot = (double)0.0F;
+        double nx = (double)0.0F;
+        double ny = (double)0.0F;
+
+        for(int i = 0; i < x.length; ++i) {
+            dot += (double)x[i] * (double)y[i];
+            nx += (double)x[i] * (double)x[i];
+            ny += (double)y[i] * (double)y[i];
+        }
+
+        return nx != (double)0.0F && ny != (double)0.0F ? dot / (Math.sqrt(nx) * Math.sqrt(ny)) : (double)0.0F;
     }
 }

@@ -3,16 +3,16 @@ package edu.mai.nextsolution;
 import java.util.Collections;
 import java.util.List;
 
-public record CheckResult(String checkable, Status status, String message, List<Figurant> figurants) {
+public record SearchResult(String checkable, Status status, String message, List<Figurant> figurants) {
     public enum Status {
         APPROVED, REJECTED, MANUAL_REVIEW
     }
 
-    public CheckResult(String checkable, Status status, String message) {
+    public SearchResult(String checkable, Status status, String message) {
         this(checkable, status, message, Collections.emptyList());
     }
 
-    public CheckResult(String checkable, Status status, String message, List<Figurant> figurants) {
+    public SearchResult(String checkable, Status status, String message, List<Figurant> figurants) {
         this.checkable = checkable;
         this.status = status;
         this.message = message;

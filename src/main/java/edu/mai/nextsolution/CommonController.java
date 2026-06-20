@@ -13,7 +13,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/")
-class SearchController {
+class CommonController {
     @GetMapping("/check")
     public ResponseEntity<Map<String, Object>> checkService() {
         Map<String, Object> response = new HashMap<>();
@@ -25,19 +25,31 @@ class SearchController {
     private final StopListChecker labseChecker;
     private final StopListChecker bgeChecker;
 
-    public SearchController(@Qualifier("labseChecker") StopListChecker labseChecker,
+    public CommonController(@Qualifier("labseChecker") StopListChecker labseChecker,
                             @Qualifier("bgeChecker") StopListChecker bgeChecker) {
         this.labseChecker = labseChecker;
         this.bgeChecker = bgeChecker;
     }
 
     @PostMapping("/search-labse")
-    public ResponseEntity<CheckResult> searchLabse(@RequestBody SearchRequest request) {
+    public ResponseEntity<SearchResult> searchLabse(@RequestBody SearchRequest request) {
         return ResponseEntity.ok(labseChecker.checkClient(request));
     }
 
+    @PostMapping("/similarity-labse")
+    public ResponseEntity<SimilarityResult> similarityLabse(@RequestBody SimilarityRequest request) {
+        return ResponseEntity.ok(labseChecker.checkSimilarity(request));
+    }
+
     @PostMapping("/search-bge")
-    public ResponseEntity<CheckResult> searchBge(@RequestBody SearchRequest request) {
+    public ResponseEntity<SearchResult> searchBge(@RequestBody SearchRequest request) {
         return ResponseEntity.ok(bgeChecker.checkClient(request));
     }
+
+    @PostMapping("/similarity-labse")
+    public ResponseEntity<SimilarityResult> similarityBge(@RequestBody SimilarityRequest request) {
+        return ResponseEntity.ok(bgeChecker.checkSimilarity(request));
+    }
+
+
 }

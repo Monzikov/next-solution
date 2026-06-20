@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Configuration;
 
 /**
  * Собирает два экземпляра {@link StopListChecker} — по одному на модель.
- * Имена бинов (labseChecker / bgeChecker) используются для инъекции в {@link SearchController}.
+ * Имена бинов (labseChecker / bgeChecker) используются для инъекции в {@link CommonController}.
  */
 @Configuration
 public class CheckerConfig {
