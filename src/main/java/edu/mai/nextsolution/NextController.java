@@ -13,7 +13,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/")
-class CommonController {
+class NextController {
     @GetMapping("/check")
     public ResponseEntity<Map<String, Object>> checkService() {
         Map<String, Object> response = new HashMap<>();
@@ -25,8 +25,8 @@ class CommonController {
     private final StopListChecker labseChecker;
     private final StopListChecker bgeChecker;
 
-    public CommonController(@Qualifier("labseChecker") StopListChecker labseChecker,
-                            @Qualifier("bgeChecker") StopListChecker bgeChecker) {
+    public NextController(@Qualifier("labseChecker") StopListChecker labseChecker,
+                          @Qualifier("bgeChecker") StopListChecker bgeChecker) {
         this.labseChecker = labseChecker;
         this.bgeChecker = bgeChecker;
     }
@@ -46,7 +46,7 @@ class CommonController {
         return ResponseEntity.ok(bgeChecker.checkClient(request));
     }
 
-    @PostMapping("/similarity-labse")
+    @PostMapping("/similarity-bge")
     public ResponseEntity<SimilarityResult> similarityBge(@RequestBody SimilarityRequest request) {
         return ResponseEntity.ok(bgeChecker.checkSimilarity(request));
     }
