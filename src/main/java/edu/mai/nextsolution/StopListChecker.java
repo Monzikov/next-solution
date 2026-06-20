@@ -54,17 +54,20 @@ public class StopListChecker {
                 return new SearchResult(fullName, SearchResult.Status.APPROVED, "Авто-пропуск. Совпадений не найдено.");
             }
 
+            var figurants_red = figurants.stream().filter(f -> f.getSimilarity() >= thresholdHigh).toList();
+            var figurants_yellow = figurants.stream().filter(f -> f.getSimilarity() >= thresholdLow && f.getSimilarity() < thresholdHigh).toList();
+            var figurants_green = figurants.stream().filter(f -> f.getSimilarity() < thresholdLow).toList();
             for (var match : figurants) {
                 if (match.getSimilarity() >= thresholdHigh) {
                     return new SearchResult(fullName, SearchResult.Status.REJECTED,
-                            "Авто-блок! Найдено критическое совпадение с фигурантом (uuid:"+match.getUuid()+", "+match.getFullFio()+") из стоп-листа: " + match.getStopListId(), figurants);
+                            "Авто-блок! Найдено критическое совпадение с фигурантом (uuid:"+match.getUuid()+", "+match.getFullFio()+") из стоп-листа: " + match.getStopListId(), figurants_red, figurants_yellow, figurants_green);
                 }
                 if (match.getSimilarity() >= thresholdLow) {
                     return new SearchResult(fullName, SearchResult.Status.MANUAL_REVIEW,
-                            "Подозрение на совпадение совпадение с фигурантом (uuid:"+match.getUuid()+", "+match.getFullFio()+") из стоп-листа: " + match.getStopListId(), figurants);
+                            "Подозрение на совпадение совпадение с фигурантом (uuid:"+match.getUuid()+", "+match.getFullFio()+") из стоп-листа: " + match.getStopListId(), figurants_red, figurants_yellow, figurants_green);
                 }
             }
-            return new SearchResult(fullName, SearchResult.Status.APPROVED, "Авто-пропуск. Значимых совпадений не найдено.", figurants);
+            return new SearchResult(fullName, SearchResult.Status.APPROVED, "Авто-пропуск. Значимых совпадений не найдено.", figurants_red, figurants_yellow, figurants_green);
 
         } catch (Exception e) {
             return new SearchResult(fullName, SearchResult.Status.MANUAL_REVIEW, "Ошибка проверки: " + e.getMessage());
