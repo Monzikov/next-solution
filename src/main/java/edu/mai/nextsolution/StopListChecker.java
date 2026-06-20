@@ -95,16 +95,6 @@ public class StopListChecker {
                 .collect(Collectors.toList());
     }
 
-    private String extractFio(Points.ScoredPoint point) {
-        String fio = payloadString(point.getPayloadMap(), "full_fio");
-        return fio != null ? fio : "Unknown";
-    }
-
-    private String extractStopListId(Points.ScoredPoint point) {
-        String sl_id = payloadString(point.getPayloadMap(), "sl_id");
-        return sl_id != null ? sl_id : "Unknown";
-    }
-
     /** Достаёт значение payload как строку независимо от его типа (string/integer/double/bool). */
     private String payloadString(Map<String, JsonWithInt.Value> payload, String key) {
         JsonWithInt.Value value = payload.get(key);
