@@ -141,9 +141,9 @@ public class StopListChecker {
     }
 
     private static double cosine(float[] x, float[] y) {
-        double dot = (double)0.0F;
-        double nx = (double)0.0F;
-        double ny = (double)0.0F;
+        double dot = 0.0F;
+        double nx = 0.0F;
+        double ny = 0.0F;
 
         for(int i = 0; i < x.length; ++i) {
             dot += (double)x[i] * (double)y[i];
