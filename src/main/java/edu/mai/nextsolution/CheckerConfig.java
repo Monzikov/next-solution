@@ -16,7 +16,7 @@ public class CheckerConfig {
     public StopListChecker labseChecker(
             LaBseEmbeddingService embeddingService,
             QdrantClient qdrantClient,
-            @Value("${app.qdrant.collection-name:stop_list_collection}") String collectionName,
+            @Value("${app.qdrant.collection-name:stop_list_collection_labse_finetuned}") String collectionName,
             @Value("${app.match.labse.threshold-low:0.82}") float thresholdLow,
             @Value("${app.match.labse.threshold-high:0.92}") float thresholdHigh) {
         return new StopListChecker(embeddingService, qdrantClient, collectionName, thresholdLow, thresholdHigh);
@@ -26,7 +26,7 @@ public class CheckerConfig {
     public StopListChecker bgeChecker(
             BgeM3EmbeddingService embeddingService,
             QdrantClient qdrantClient,
-            @Value("${app.qdrant.bge-collection-name:stop_list_collection_bge_m3}") String collectionName,
+            @Value("${app.qdrant.bge-collection-name:stop_list_collection_bge_m3_finetuned}") String collectionName,
             @Value("${app.match.bge.threshold-low:0.82}") float thresholdLow,
             @Value("${app.match.bge.threshold-high:0.92}") float thresholdHigh) {
         return new StopListChecker(embeddingService, qdrantClient, collectionName, thresholdLow, thresholdHigh);

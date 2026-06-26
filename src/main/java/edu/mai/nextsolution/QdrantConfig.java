@@ -24,13 +24,13 @@ public class QdrantConfig {
     @Value("${spring.ai.vectorstore.qdrant.use-tls:false}")
     private boolean useTls;
 
-    @Value("${app.qdrant.collection-name:stop_list_collection}")
+    @Value("${app.qdrant.collection-name:stop_list_collection_labse_finetuned}")
     private String collectionName;
 
     @Value("${app.qdrant.vector-size:768}")
     private long vectorSize;
 
-    @Value("${app.qdrant.bge-collection-name:stop_list_collection_bge_m3}")
+    @Value("${app.qdrant.bge-collection-name:stop_list_collection_bge_m3_finetuned}")
     private String bgeCollectionName;
 
     @Value("${app.qdrant.bge-vector-size:1024}")
